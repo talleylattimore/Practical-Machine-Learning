@@ -1,0 +1,68 @@
+---
+title: "Course Project"
+author: "Talley Lattimore"
+date: "December 24, 2015"
+output: html_document
+---
+# Getting Set Up
+After reading the files into R, we load the libraries needed for our analysis. Next, I split the training data up into another training and test set.
+``` {R initial, results = "hide"}
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+library(caret); library(kernlab); library(randomForest)
+inTrain <- createDataPartition(training$classe, p = .75, list = FALSE)
+myTrain <- training[inTrain,]
+myTest <- training[-inTrain,]
+```
+Next, I remove a series of variables that I believe have could cause problems. Variables such as user name could be predictive inside the training sample, but will have no predictive value outside of the training set.
+``` {R}
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+myTrain[1] <- NULL
+```
+Next, we use eliminate variables that have little variance.  These variables are of little predictive value. Finally, we eliminate variables that are more than 60% NA.
+``` {R}
+myTrain <- myTrain[, -nearZeroVar(myTrain)]
+finalTrain <- myTrain
+for(i in 1:length(myTrain)) {
+  if(sum(is.na(myTrain[,i]))/nrow(myTrain) >= .6 ) {
+    for(j in 1:length(finalTrain)) {
+      if(length(grep(names(myTrain[i]), names(finalTrain)[j])) ==1)  {
+        finalTrain <- finalTrain[,-j]
+      }   
+    } 
+  }
+}
+```
+# Model Building
+For this data we will use the random Forest function to build a model.  This builds multiple trees and tries a series of variables at each branch.
+``` {r Model, cache = TRUE}
+fitRandomForest <- randomForest(classe ~. , data=finalTrain)
+fitRandomForest
+```
+This model is built from the myTrain data set and can be applied to the myTest dataset to check how it works. To do so we use the predict function and make a confusion matrix.
+``` {R}
+pred <- predict(fitRandomForest, myTest, type = "class")
+confusionMatrix(pred, myTest$classe)
+```
+This model proves to be very accurate. It correctly prdicts classe 99.67% of the time. This shows that it is a good predictive model and can be applied to the final, outside test dataset.
+``` {r}
+finalPred <- predict(fitRandomForest, testing, type = "class")
+```
+# Submission
+Finally, we use the provided function to create files for submission. 
+``` {r}
+pml_write_files = function(x){
+     n = length(x)
+     for(i in 1:n){
+         filename = paste0("problem_id_",i,".txt")
+         write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+     }
+ }
+pml_write_files(finalPred)
+```
